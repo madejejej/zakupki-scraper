@@ -36,19 +36,47 @@ class PerPageSpider < Kimurai::Base
   def parse_page(response, url:, data: {})
     item = {
       url: url,
-      id: response.xpath("//span[@class='cardMainInfo__purchaseLink distancedText']").text,
+      tender_number: response.xpath("//span[@class='cardMainInfo__purchaseLink distancedText']").text,
       description: response.xpath("//div[@class='sectionMainInfo__body']//span[@class='cardMainInfo__content']").first.text.squish,
-      title: response.xpath("//div[@class='sectionMainInfo__body']//span[@class='cardMainInfo__content']").last.text.squish,
-      cost: response.xpath("//span[@class='cardMainInfo__content cost']").text.squish,
+      procurer: response.xpath("//div[@class='sectionMainInfo__body']//span[@class='cardMainInfo__content']").last.text.squish,
+      initial_price: response.xpath("//span[@class='cardMainInfo__content cost']").text.squish,
       from: response.xpath("//div[@class='date']//span[@class='cardMainInfo__content']").first.text.squish,
       to: response.xpath("//div[@class='date']//span[@class='cardMainInfo__content']")[1].text.squish,
-      s11: response.xpath("//div[@class='row blockInfo']").first.xpath("//section[@class='blockInfo__section section']//span[@class='section__info']").first.text.squish,
-      s12: response.xpath("//div[@class='row blockInfo']").first.xpath("//section[@class='blockInfo__section section']//span[@class='section__info']")[1].text.squish,
-      # kontakt?
-      s23: response.xpath("//div[@class='row blockInfo']")[1].xpath("//section[@class='blockInfo__section section']//span[@class='section__info']")[2].text.squish,
-      s24: response.xpath("//div[@class='row blockInfo']")[1].xpath("//section[@class='blockInfo__section section']//span[@class='section__info']")[3].text.squish,
-      s25: response.xpath("//div[@class='row blockInfo']")[1].xpath("//section[@class='blockInfo__section section']//span[@class='section__info']")[4].text.squish,
-      s26: response.xpath("//div[@class='row blockInfo']")[1].xpath("//section[@class='blockInfo__section section']//span[@class='section__info']")[5].text.squish,
+
+      # row 1
+      procedure_type: response.xpath("(//div[@class='row blockInfo'])[1]//span[@class='section__info']")[0].text.squish,
+      published_on: response.xpath("(//div[@class='row blockInfo'])[1]//span[@class='section__info']")[2].text.squish,
+      publishing_entity: response.xpath("(//div[@class='row blockInfo'])[1]//span[@class='section__info']")[3].text.squish,
+      phase: response.xpath("(//div[@class='row blockInfo'])[1]//span[@class='section__info']")[5].text.squish,
+
+      # row 2
+      procurer_address: response.xpath("(//div[@class='row blockInfo'])[2]//span[@class='section__info']")[2].text.squish,
+      point_of_contact: response.xpath("(//div[@class='row blockInfo'])[2]//span[@class='section__info']")[3].text.squish,
+      contact_email: response.xpath("(//div[@class='row blockInfo'])[2]//span[@class='section__info']")[4].text.squish,
+      contact_phone: response.xpath("(//div[@class='row blockInfo'])[2]//span[@class='section__info']")[5].text.squish,
+
+      # row 3
+      application_start_date: response.xpath("(//div[@class='row blockInfo'])[3]//span[@class='section__info']")[0].text.squish,
+      application_end_date: response.xpath("(//div[@class='row blockInfo'])[3]//span[@class='section__info']")[1].text.squish,
+      auction_date: response.xpath("(//div[@class='row blockInfo'])[3]//span[@class='section__info']")[4].text.squish,
+
+      # not sure about this
+      source_of_funding: response.xpath("(//div[@class='row blockInfo'])[4]//span[@class='section__info']")[3].text.squish,
+
+      number_of_lots: response.xpath("//span[@class='tableBlock__resultTitle']")[1].text[/\d+/]&.to_i,
+
+      participant_averages: response.xpath("(//div[@class='row blockInfo'])[6]//span[@class='section__info']")[0].text.squish,
+      requirements_towards_participants_number_characters: response.xpath("(//div[@class='row blockInfo'])[6]//span[@class='section__info']")[1].text.squish.size,
+      restrictions_and_bands: response.xpath("(//div[@class='row blockInfo'])[6]//span[@class='section__info']")[2].text.squish,
+
+      contract_fullfillment_required: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение исполнения контракта']/..//span[@class='section__info']")[0]&.text&.squish,
+      contract_fullfillment_guarantee: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение исполнения контракта']/..//span[@class='section__info']")[1]&.text&.squish,
+
+      financial_guarantee_required: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение заявки']/..//span[@class='section__info']")[0]&.text&.squish,
+      application_guarantee: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение заявки']/..//span[@class='section__info']")[1]&.text&.squish,
+
+      vadium_required: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение гарантийных обязательств']/..//span[@class='section__info']")[0]&.text&.squish,
+      vadium_amount: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение гарантийных обязательств']/..//span[@class='section__info']")[0]&.text&.squish,
     }
 
     save_to "data.csv", item, format: :csv
