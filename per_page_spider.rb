@@ -2,11 +2,10 @@ require 'kimurai'
 require 'net/http'
 require 'mechanize'
 
-ids = JSON.parse(File.read('ids.json')).map { |a| a['ids'] }.flatten
-
+#ids = JSON.parse(File.read('ids.json')).map { |a| a['ids'] }.flatten
+ids = JSON.parse(File.read('sample2.json'))
 puts "#{ids.size} IDS"
 puts "#{ids.uniq.size} unique IDS"
-
 $ids = ids.uniq
 
 class PerPageSpider < Kimurai::Base
@@ -44,42 +43,41 @@ class PerPageSpider < Kimurai::Base
       to: response.xpath("//div[@class='date']//span[@class='cardMainInfo__content']")[1].text.squish,
 
       # row 1
-      procedure_type: response.xpath("(//div[@class='row blockInfo'])[1]//span[@class='section__info']")[0].text.squish,
-      published_on: response.xpath("(//div[@class='row blockInfo'])[1]//span[@class='section__info']")[2].text.squish,
-      publishing_entity: response.xpath("(//div[@class='row blockInfo'])[1]//span[@class='section__info']")[3].text.squish,
-      phase: response.xpath("(//div[@class='row blockInfo'])[1]//span[@class='section__info']")[5].text.squish,
+      procedure_type: value_for_header(response, 'Способ определения поставщика (подрядчика, исполнителя)'),
+      published_on: value_for_header(response, 'Адрес электронной площадки в информационно-телекоммуникационной сети \"Интернет\"'),
+      publishing_entity: value_for_header(response, 'Организация, осуществляющая размещение'),
+      phase: value_for_header(response, 'Этап закупки'),
 
       # row 2
-      procurer_address: response.xpath("(//div[@class='row blockInfo'])[2]//span[@class='section__info']")[2].text.squish,
-      point_of_contact: response.xpath("(//div[@class='row blockInfo'])[2]//span[@class='section__info']")[3].text.squish,
-      contact_email: response.xpath("(//div[@class='row blockInfo'])[2]//span[@class='section__info']")[4].text.squish,
-      contact_phone: response.xpath("(//div[@class='row blockInfo'])[2]//span[@class='section__info']")[5].text.squish,
+      procurer_address: value_for_header(response, 'Место нахождения'),
+      contact_person: value_for_header(response, 'Ответственное должностное лицо'),
+      contact_email: value_for_header(response, 'Адрес электронной почты'),
+      contact_phone: value_for_header(response, 'Номер контактного телефона'),
 
       # row 3
-      application_start_date: response.xpath("(//div[@class='row blockInfo'])[3]//span[@class='section__info']")[0].text.squish,
-      application_end_date: response.xpath("(//div[@class='row blockInfo'])[3]//span[@class='section__info']")[1].text.squish,
-      auction_date: response.xpath("(//div[@class='row blockInfo'])[3]//span[@class='section__info']")[4].text.squish,
+      application_start_date: value_for_header(response, 'Дата и время начала срока подачи заявок'),
+      application_end_date: value_for_header(response, 'Дата и время окончания срока подачи заявок на участие в электронном аукционе'),
+      auction_date: value_for_header(response, 'Дата проведения аукциона в электронной форме'),
 
       # not sure about this
-      source_of_funding: response.xpath("(//div[@class='row blockInfo'])[4]//span[@class='section__info']")[3].text.squish,
+      source_of_funding: value_for_header(response, 'Источник финансирования'),
 
-      number_of_lots: response.xpath("//span[@class='tableBlock__resultTitle']")[1].text[/\d+/]&.to_i,
+      number_of_lots: (response.xpath("(//h2[@class='blockInfo__title'])[text()='Информация об объекте закупки']/..//span[@class='tableBlock__resultTitle']")[0]&.text&.squish || '')[/\d+/]&.to_i,
 
-      participant_averages: response.xpath("(//div[@class='row blockInfo'])[6]//span[@class='section__info']")[0].text.squish,
-      requirements_towards_participants_number_characters: response.xpath("(//div[@class='row blockInfo'])[6]//span[@class='section__info']")[1].text.squish.size,
-      restrictions_and_bands: response.xpath("(//div[@class='row blockInfo'])[6]//span[@class='section__info']")[2].text.squish,
+      participant_averages: value_for_header(response, 'Преимущества'),
+      requirements_towards_participants_number_characters: value_for_header(response, 'Требования к участникам')&.size || 0,
+      restrictions_and_bans: value_for_header(response, 'Ограничения и запреты'),
 
-      contract_fullfillment_required: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение исполнения контракта']/..//span[@class='section__info']")[0]&.text&.squish,
-      contract_fullfillment_guarantee: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение исполнения контракта']/..//span[@class='section__info']")[1]&.text&.squish,
-
-      financial_guarantee_required: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение заявки']/..//span[@class='section__info']")[0]&.text&.squish,
-      application_guarantee: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение заявки']/..//span[@class='section__info']")[1]&.text&.squish,
-
-      vadium_required: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение гарантийных обязательств']/..//span[@class='section__info']")[0]&.text&.squish,
-      vadium_amount: response.xpath("(//h2[@class='blockInfo__title'])[text()='Обеспечение гарантийных обязательств']/..//span[@class='section__info']")[0]&.text&.squish,
+      contract_fullfillment_guarantee: value_for_header(response, 'Размер обеспечения исполнения контракта'),
+      application_guarantee: value_for_header(response, 'Размер обеспечения заявки'),
+      vadium_amount: value_for_header(response, 'Размер обеспечения гарантийных обязательств')
     }
 
     save_to "data.csv", item, format: :csv
+  end
+
+  def value_for_header(response, header)
+    response.xpath("(//span[@class='section__title'])[text()='#{header}']/..//span[@class='section__info']")[0]&.text&.squish
   end
 end
 
