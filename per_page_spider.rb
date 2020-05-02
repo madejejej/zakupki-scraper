@@ -30,7 +30,7 @@ class PerPageSpider < Kimurai::Base
     in_parallel(
       :parse_page,
       urls,
-      threads: 4
+      threads: 8
     )
   end
 
@@ -50,7 +50,7 @@ class PerPageSpider < Kimurai::Base
       publishing_entity:
         value_for_header(response, 'Организация, осуществляющая размещение') ||
           # https://zakupki.gov.ru/epz/order/notice/ep44/view/common-info.html?regNumber=0369300235118000001
-        response.xpath("(//span[@class='cardMainInfo__title'])[text()='Заказчик']/..//span[@class='cardMainInfo__content']")[0]&.text&.squish,
+          response.xpath("(//span[@class='cardMainInfo__title'])[text()='Заказчик']/..//span[@class='cardMainInfo__content']")[0]&.text&.squish,
       phase: value_for_header(response, 'Этап закупки'),
 
       # row 2
