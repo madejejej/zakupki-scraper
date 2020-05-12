@@ -46,7 +46,7 @@ class ZakupkiSpider < Kimurai::Base
         date: date,
         ids: day_data[:ids].to_a
       }
-      save_to "ids.json", item, format: :json
+      save_to "ids_final.json", item, format: :json
     end
   end
 
