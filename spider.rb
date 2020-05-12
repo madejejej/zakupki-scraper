@@ -14,7 +14,7 @@ class ZakupkiSpider < Kimurai::Base
       delay: 1..3
     }
   }
-  @start_urls = ['https://zakupki.gov.ru/epz/order/extendedsearch/results.html?morphology=on&search-filter=%D0%94%D0%B0%D1%82%D0%B5+%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%89%D0%B5%D0%BD%D0%B8%D1%8F&sortDirection=false&recordsPerPage=_500&showLotsInfoHidden=false&sortBy=UPDATE_DATE&fz44=on&pc=on&currencyIdGeneral=-1']
+  @start_urls = ['https://zakupki.gov.ru/epz/order/extendedsearch/results.html?morphology=on&search-filter=%D0%94%D0%B0%D1%82%D0%B5+%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%89%D0%B5%D0%BD%D0%B8%D1%8F&sortDirection=false&recordsPerPage=_500&showLotsInfoHidden=false&sortBy=PRICE&fz44=on&pc=on&placingWayList=EP44%2CEPP44%2CEA44%2CEAB44%2CZK504%2CZKP504%2CEZK504%2CINM111%2CEP111%2COK504%2COKA504%2CZP504%2CZPP504%2CEZP504%2CZA44%2CZAP44%2CZAE44%2COKU504%2COKUP504%2CEOKU504%2COKUK504%2COKUI504%2COK44%2COKA44%2CZK44%2CZKI44%2CZKK44%2CZKKP44%2CZKKI44%2CZKKE44%2COKD504%2COKDP504%2CEOKD504%2COKDK504%2COKDI504%2CZKKU44%2CZKKUP44%2CZKKUI44%2CZKKUE44%2CZKKD44%2CZKKDP44%2CZKKDI44%2CZKKDE44%2COKU44%2COKUP44%2CPOKU44%2CEOKU44%2COKD44%2COKDP44%2CEOKD44%2CZKB44%2CZKBGP44%2CZP44%2CZPP44%2CEAO44%2CZKOP44%2CZKOO44%2CEOK44%2CZKB111%2CZK111%2COKK504%2COKP44%2CEAP44%2CEEA44%2CZKE44&priceFromGeneral=9785600&currencyIdGeneral=-1&OrderPlacementSmallBusinessSubject=on&OrderPlacementRnpData=on&OrderPlacementExecutionRequirement=on&orderPlacement94_0=0&orderPlacement94_1=0&orderPlacement94_2=0']
 
   def parse(response, url:, data: {})
     date = Date.parse('2020-01-01')
