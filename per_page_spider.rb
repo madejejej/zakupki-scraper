@@ -24,13 +24,13 @@ class PerPageSpider < Kimurai::Base
 
   def parse(response, url:, data: {})
     urls = $ids.map do |id|
-      "https://zakupki.gov.ru/epz/order/notice/ea44/view/common-info.html?regNumber=#{id}&recordsPerPage=25"
+      "https://zakupki.gov.ru/epz/order/notice/ea44/view/common-info.html?regNumber=#{id}"
     end
 
     in_parallel(
       :parse_page,
       urls,
-      threads: 8
+      threads: 10
     )
   end
 
@@ -73,7 +73,7 @@ class PerPageSpider < Kimurai::Base
         'Дата и время окончания подачи заявок',
         'Дата и время окончания подачи котировочных заявок',
         'Дата и время начала подачи заявок (по местному времени)'
-      ),
+      ) || response.xpath("//div[@class='date']//span[@class='cardMainInfo__content']")[1].text.squish,
       auction_date: value_for_header(
         response,
         'Дата проведения аукциона в электронной форме',
@@ -90,14 +90,20 @@ class PerPageSpider < Kimurai::Base
 
       participant_averages: value_for_header(response, 'Преимущества'),
       requirements_towards_participants_number_characters: value_for_header(response, 'Требования к участникам')&.size || 0,
-      restrictions_and_bans: value_for_header(response, 'Ограничения и запреты')
-    }.merge(
-      multiple_values(response, 'Размер обеспечения исполнения контракта', :contract_fullfillment_guarantee)
-    ).merge(
-      multiple_values(response, 'Размер обеспечения заявки', :application_guarantee)
-    ).merge(
-      multiple_values(response, 'Размер обеспечения гарантийных обязательств', :vadium_amount)
-    )
+      restrictions_and_bans: value_for_header(response, 'Ограничения и запреты'),
+      contract_fullfillment_guarantee_mean: mean_money(response, 'Размер обеспечения исполнения контракта'),
+      application_guarantee_mean: mean_money(response, 'Размер обеспечения заявки'),
+      vadium_amount_mean: mean_money(response, 'Размер обеспечения гарантийных обязательств')
+    }.merge(evaluation_criteria(response))
+
+    # needed in order to have correct headers in the damned CSV
+    third_tab_values = ['participant', 'bid'].flat_map do |field|
+      (1..MULTIPLE_VALUE_LIMIT).to_a.map do |i|
+        { "#{field}_#{i}" => nil }
+      end
+    end.reduce(&:merge).merge(date_of_decision: nil)
+
+    item.merge!(third_tab_values)
 
     third_tab = response.xpath("(//a[@class='tabsNav__item'])[text()[contains(., 'Результаты определения поставщика')]]")
 
@@ -106,6 +112,26 @@ class PerPageSpider < Kimurai::Base
     end
 
     save_to "data_full.csv", item, format: :csv
+  end
+
+  def evaluation_criteria(response)
+    next_offset = 1
+
+    response.xpath("((//h2)[text()='Критерии оценки заявок участников']/..//table)[1]/tbody/tr[@class='tableBlock__row']").map.with_index do |row, idx|
+      offset = next_offset
+      colspan = row.at_xpath("td[#{offset}]").attributes['colspan']
+
+      if colspan
+        next_offset = colspan.value.to_i
+      else
+        next_offset = 1
+      end
+
+      {
+        "criterion_#{idx + 1}" => row.at_xpath("td[#{offset}]").text.squish,
+        "weight_#{idx + 1}" => row.at_xpath("td[#{offset + 1}]").text.squish.tr(',', '.').to_f
+      }
+    end.reduce(&:merge)
   end
 
   def scrape_third_tab(response, url:, data: {})
@@ -131,6 +157,24 @@ class PerPageSpider < Kimurai::Base
 
     data.merge!(participants_and_bids_h)
     data[:date_of_decision] = date_of_decision
+  end
+
+  def mean_money(response, header)
+    xpath = response.xpath("(//span[@class='section__title'])[text()='#{header}']/..//span[@class='section__info']")
+
+    return if xpath.empty?
+
+    values = xpath.map do |value|
+      text = value&.text&.squish
+
+      break if text.nil?
+
+      matches = text.tr(' ', '').tr(',', '.').match(/(\d+\.?\d\d)Российскийрубль/i)
+
+      matches[0].to_f if matches
+    end
+
+    values.sum / values.size
   end
 
   def multiple_values(response, header, field)
