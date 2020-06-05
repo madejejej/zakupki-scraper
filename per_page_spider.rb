@@ -111,7 +111,7 @@ class PerPageSpider < Kimurai::Base
       request_to(:scrape_third_tab, url: absolute_url(third_tab[0][:href], base: url), data: item)
     end
 
-    save_to "data_full.csv", item, format: :csv
+    save_to "data_final_4.json", item, format: :json
   end
 
   def evaluation_criteria(response)
