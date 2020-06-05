@@ -2,10 +2,64 @@ require 'kimurai'
 require 'net/http'
 require 'mechanize'
 
-#ids = JSON.parse(File.read('ids.json')).map { |a| a['ids'] }.flatten
-ids = JSON.parse(File.read('sample2.json'))
-puts "#{ids.size} IDS"
-puts "#{ids.uniq.size} unique IDS"
+require 'kimurai/capybara_ext/session'
+
+module Capybara
+  class Session
+    attr_accessor :spider
+
+    def visit(visit_uri, delay: config.before_request[:delay], skip_request_options: false, max_retries: 8)
+      if spider
+        process_delay(delay) if delay
+        retries, sleep_interval = 0, 0
+
+        begin
+          check_request_options(visit_uri) unless skip_request_options
+          driver.requests += 1 and logger.info "Browser: started get request to: #{visit_uri}"
+          spider.class.update(:visits, :requests) if spider.with_info
+
+          original_visit(visit_uri)
+        rescue => e
+          if match_error?(e, type: :to_skip)
+            logger.error "Browser: skip request error: #{e.inspect}, url: #{visit_uri}"
+            spider.add_event(:requests_errors, e.inspect) if spider.with_info
+            false
+          elsif match_error?(e, type: :to_retry)
+            logger.error "Browser: retry request error: #{e.inspect}, url: #{visit_uri}"
+            spider.add_event(:requests_errors, e.inspect) if spider.with_info
+
+            if (retries += 1) <= max_retries
+              logger.info "Browser: sleep #{(sleep_interval += 2**(retries + 1) + rand(10))} seconds and process retry № #{retries} to the url: #{visit_uri}"
+              sleep sleep_interval and retry
+            else
+              logger.error "Browser: all retries (#{retries - 1}) to the url #{visit_uri} are gone"
+              raise e unless skip_error_on_failure?(e)
+            end
+          else
+            raise e
+          end
+        else
+          driver.responses += 1 and logger.info "Browser: finished get request to: #{visit_uri}"
+          spider.class.update(:visits, :responses) if spider.with_info
+          driver.visited = true unless driver.visited
+          true
+        ensure
+          if spider.with_info
+            logger.info "Info: visits: requests: #{spider.class.visits[:requests]}, responses: #{spider.class.visits[:responses]}"
+          end
+
+          if memory = driver.current_memory
+            logger.debug "Browser: driver.current_memory: #{memory}"
+          end
+        end
+      else
+        original_visit(visit_uri)
+      end
+    end
+  end
+end
+
+ids = JSON.parse(File.read('ids_final.json')).map { |a| a['ids'] }.flatten
 $ids = ids.uniq
 
 class PerPageSpider < Kimurai::Base
