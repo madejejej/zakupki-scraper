@@ -14,7 +14,7 @@ class PerPageSpider < Kimurai::Base
   @config = {
     user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:75.0) Gecko/20100101 Firefox/75.0",
     retry_request_errors: [
-      Net::ReadTimeout, Net::HTTPServiceUnavailable, Net::HTTPBadGateway, Mechanize::ResponseCodeError, RuntimeError
+      Net::ReadTimeout, Net::HTTPServiceUnavailable, Net::HTTPBadGateway, Mechanize::ResponseCodeError, RuntimeError, NoMethodError, Net::HTTP::Persistent::Error, SocketError, Errno::ECONNRESET
     ].map { |err| { error: err, skip_on_failure: true }},
     before_request: { delay: 2..5 }
   }
@@ -129,9 +129,9 @@ class PerPageSpider < Kimurai::Base
 
       {
         "criterion_#{idx + 1}" => row.at_xpath("td[#{offset}]").text.squish,
-        "weight_#{idx + 1}" => row.at_xpath("td[#{offset + 1}]").text.squish.tr(',', '.').to_f
+        "weight_#{idx + 1}" => row.at_xpath("td[#{offset + 1}]").text.squish
       }
-    end.reduce(&:merge)
+    end.reduce(&:merge) || {}
   end
 
   def scrape_third_tab(response, url:, data: {})
@@ -172,9 +172,9 @@ class PerPageSpider < Kimurai::Base
       matches = text.tr(' ', '').tr(',', '.').match(/(\d+\.?\d\d)Российскийрубль/i)
 
       matches[0].to_f if matches
-    end
+    end.compact
 
-    values.sum / values.size
+    values.any? ? values.sum / values.size : 0
   end
 
   def multiple_values(response, header, field)
